@@ -35,8 +35,8 @@ void emit_sync(int fd) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 2) {
-        fprintf(stderr, "USAGE: %s /dev/input/eventX\n", argv[0]);
+    if (argc != 2 && argc != 4) {
+        fprintf(stderr, "USAGE: %s /dev/input/eventX [<x> <y>]\n  <x> is percentage of device width to map with virtual device\n  <y> is like <x> but for height\n", argv[0]);
         return 1;
     }
     const char *device = argv[1];
@@ -51,6 +51,8 @@ int main(int argc, char **argv) {
         return 2;
     }
 
+    int nminx, nranx;
+    int nminy, nrany;
     {
         struct uinput_setup usetup;
         struct uinput_abs_setup abs_setup;
@@ -78,6 +80,41 @@ int main(int argc, char **argv) {
         
             abs_setup.code = abs_inputs[i].x;
             ioctl(fd, abs_inputs[i].y, &abs_setup.absinfo);
+            ioctl(uinput_fd, UI_ABS_SETUP, &abs_setup);
+        }
+        {
+            float perx=100, pery=100;
+            if (argc == 4) {
+                sscanf(argv[2], "%f", &perx);
+                sscanf(argv[3], "%f", &pery);
+            }
+            perx /= 100;
+            pery /= 100;
+            
+            ioctl(fd, EVIOCGABS(ABS_X), &abs_setup.absinfo);
+            int minx = abs_setup.absinfo.minimum;
+            int ranx = abs_setup.absinfo.maximum - minx;
+            abs_setup.absinfo.minimum = 0;
+            abs_setup.absinfo.maximum = nranx = (int)(ranx * perx);
+            nminx = (int)(ranx*(1-perx)/2) + minx;
+            ioctl(uinput_fd, UI_SET_ABSBIT, ABS_X);
+            abs_setup.code = ABS_X;
+            ioctl(uinput_fd, UI_ABS_SETUP, &abs_setup);
+            ioctl(uinput_fd, UI_SET_ABSBIT, ABS_MT_POSITION_X);
+            abs_setup.code = ABS_MT_POSITION_X;
+            ioctl(uinput_fd, UI_ABS_SETUP, &abs_setup);
+            
+            ioctl(fd, EVIOCGABS(ABS_Y), &abs_setup.absinfo);
+            int miny = abs_setup.absinfo.minimum;
+            int rany = abs_setup.absinfo.maximum - miny;
+            abs_setup.absinfo.minimum = 0;
+            abs_setup.absinfo.maximum = nrany = (int)(rany * pery);
+            nminy = (int)(rany*(1-pery)/2) + miny;
+            ioctl(uinput_fd, UI_SET_ABSBIT, ABS_Y);
+            abs_setup.code = ABS_Y;
+            ioctl(uinput_fd, UI_ABS_SETUP, &abs_setup);
+            ioctl(uinput_fd, UI_SET_ABSBIT, ABS_MT_POSITION_Y);
+            abs_setup.code = ABS_MT_POSITION_Y;
             ioctl(uinput_fd, UI_ABS_SETUP, &abs_setup);
         }
         ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TOUCH);
@@ -117,13 +154,27 @@ int main(int argc, char **argv) {
 
         if (ev.type == EV_ABS) {
             switch (ev.code) {
-                case ABS_X:
-                case ABS_Y:
                 case ABS_MT_SLOT:
-                case ABS_MT_POSITION_X:
-                case ABS_MT_POSITION_Y:
                 case ABS_MT_TOOL_TYPE:
                 case ABS_MT_TRACKING_ID:
+                    write(uinput_fd, &ev, sizeof(ev));
+                    break;
+                case ABS_X:
+                case ABS_MT_POSITION_X:
+                    ev.value = (ev.value-nminx);
+                    if (ev.value < 0)
+                        ev.value = 0;
+                    else if (ev.value > nranx)
+                        ev.value = nranx;
+                    write(uinput_fd, &ev, sizeof(ev));
+                    break;
+                case ABS_Y:
+                case ABS_MT_POSITION_Y:
+                    ev.value = (ev.value-nminy);
+                    if (ev.value < 0)
+                        ev.value = 0;
+                    else if (ev.value > nrany)
+                        ev.value = nrany;
                     write(uinput_fd, &ev, sizeof(ev));
                     break;
                 default:
