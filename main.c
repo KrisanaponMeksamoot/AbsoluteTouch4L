@@ -81,6 +81,8 @@ int main(int argc, char **argv) {
             ioctl(uinput_fd, UI_ABS_SETUP, &abs_setup);
         }
         ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TOUCH);
+        ioctl(uinput_fd, UI_SET_KEYBIT, BTN_TOOL_FINGER);
+        ioctl(uinput_fd, UI_SET_KEYBIT, BTN_LEFT);
 
         ioctl(uinput_fd, UI_SET_PROPBIT, INPUT_PROP_DIRECT);
         // ioctl(uinput_fd, UI_SET_PROPBIT, INPUT_PROP_POINTER);
@@ -114,14 +116,31 @@ int main(int argc, char **argv) {
         }
 
         if (ev.type == EV_ABS) {
-            emit_event(uinput_fd, EV_ABS, ev.code, ev.value);
+            switch (ev.code) {
+                case ABS_X:
+                case ABS_Y:
+                case ABS_MT_SLOT:
+                case ABS_MT_POSITION_X:
+                case ABS_MT_POSITION_Y:
+                case ABS_MT_TOOL_TYPE:
+                case ABS_MT_TRACKING_ID:
+                    write(uinput_fd, &ev, sizeof(ev));
+                    break;
+                default:
+                    break;
+            }
         } else if (ev.type == EV_KEY) {
-            if (ev.code == BTN_TOUCH) {
-                emit_event(uinput_fd, EV_KEY, BTN_TOUCH, ev.value);
+            switch (ev.code) {
+                case BTN_TOUCH:
+                case BTN_TOOL_FINGER:
+                case BTN_LEFT:
+                    write(uinput_fd, &ev, sizeof(ev));
+                    break;
+                default:
+                    break;
             }
         } else if (ev.type == EV_SYN) {
-            emit_event(uinput_fd, EV_SYN, SYN_REPORT, 0);
-            emit_sync(uinput_fd);
+            write(uinput_fd, &ev, sizeof(ev));
         }
     }
 
