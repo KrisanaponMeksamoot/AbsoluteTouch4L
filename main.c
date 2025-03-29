@@ -68,8 +68,6 @@ int main(int argc, char **argv) {
             {ABS_X, EVIOCGABS(ABS_X)},
             {ABS_Y, EVIOCGABS(ABS_Y)},
             {ABS_MT_SLOT, EVIOCGABS(ABS_MT_SLOT)},
-            {ABS_MT_POSITION_X, EVIOCGABS(ABS_MT_POSITION_X)},
-            {ABS_MT_POSITION_Y, EVIOCGABS(ABS_MT_POSITION_Y)},
             {ABS_MT_TOOL_TYPE, EVIOCGABS(ABS_MT_TOOL_TYPE)},
             {ABS_MT_TRACKING_ID, EVIOCGABS(ABS_MT_TRACKING_ID)}
         };
